@@ -4,6 +4,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
 const User = require('./User');
+const Student = require('./Student');
 const connectDB = require('./db');
 
 const app = express();
@@ -84,11 +85,58 @@ app.post('/login', async (req, res) => {
 
         res.send("Вы успешно вошли в систему!");
     } catch (e) {
-        res.status(500).send("Ошибка при входе");
+        res.status(500).send("Ошибка при входе!");
+    }
+});
+
+app.post('/student', async (req, res) => {
+    try {
+        const student = new Student(req.body);
+        await student.save();
+        res.status(201).send(student);
+    } catch (e) {   
+        res.status(400).send("Ошибка при создании!")
+    }
+});
+
+app.get('/student', async (req, res) => {
+    try {
+        const student = await Student.find();
+        res.send(student); 
+    } catch (e) {
+        res.status(500).send("Ошибка сервера!");
+    }
+});
+
+app.put('/student/:id', async (req, res) => { 
+    try {
+        const updatedStudent = await Student.findByIdAndUpdate(
+            req.params.id, 
+            req.body, 
+            { new: true } 
+        );
+
+        if (!updatedStudent) return res.status(404).send("Студент не найден");
+
+        res.send(updatedStudent);
+    } catch (e) {
+        res.status(400).send("Ошибка при обновлении данных");
+    }
+});
+
+app.delete('/student/:id', async (req, res) => {
+    try {
+        const deletedStudent = await Student.findByIdAndDelete(req.params.id);
+
+        if (!deletedStudent) return res.status(404).send("Студент не найден");
+
+        res.send({ message: "Студент успешно удален", student: deletedStudent });
+    } catch (e) {
+        res.status(500).send("Ошибка при удалении");
     }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Сервер: http://localhost:${PORT}`);
+    console.log(`Сервер: http://localhost:${PORT}`);
 });
