@@ -19,6 +19,10 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+app.get('/', (req, res) => {
+    res.send("Hello, World!");
+});
+
 app.post('/register', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -34,49 +38,45 @@ app.post('/register', async (req, res) => {
         const user = new User({ email, password: hashedPassword, token }); 
         await user.save();
 
-        const link = `http://localhost:3000/activate/${token}`;
+        const link = `http://localhost:${process.env.PORT || 3000}/activate/${token}`;
         await transporter.sendMail({
-            from: 'wayncarx@gmail.com',
+            from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Активация',
-            html: `<a href="${link}">Нажми для активации!</a>`
+            subject: 'Активация аккаунта',
+            html: `<h3>Спасибо за регистрацию!</h3><a href="${link}">Нажми сюда для активации</a>`
         });
 
-        res.send("Регистрация успешна!");
+        res.send("Регистрация успешна! Проверьте почту.");
     } catch (e) {
         res.status(500).send("Ошибка сервера");
     }
 });
 
 app.get('/activate/:token', async (req, res) => {
-    const user = await User.findOne({ token: req.params.token });
-    if (user) {
-        user.isActivated = true;
-        await user.save();
-        res.send("Аккаунт активирован! http://localhost:{PORT}/login");
-    } else {
-        res.status(400).send("Токен неверный");
+    try {
+        const user = await User.findOne({ token: req.params.token });
+        if (user) {
+            user.isActivated = true;
+            user.token = null; 
+            await user.save();
+            res.send("<h1>Аккаунт успешно активирован!</h1>");
+        } else {
+            res.status(400).send("Токен неверный или уже использован");
+        }
+    } catch (e) {
+        res.status(500).send("Ошибка активации");
     }
 });
 
-app.get('/', (req, res) => {
-	res.send("Hello, World!");
-});
-	
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).send("Пользователь не найден");
-        }
+        if (!user) return res.status(404).send("Пользователь не найден");
 
         const isMatch = await bcrypt.compare(password, user.password);
-        
-        if (!isMatch) {
-            return res.status(400).send("Неверный пароль");
-        }
+        if (!isMatch) return res.status(400).send("Неверный пароль");
 
         if (!user.isActivated) {
             return res.status(403).send("Аккаунт не активирован. Проверьте почту!");
@@ -90,5 +90,5 @@ app.post('/login', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-	console.log(`Express сервер запущен! http://localhost:${PORT}`);
+    console.log(`🚀 Сервер: http://localhost:${PORT}`);
 });
